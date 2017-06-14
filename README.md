@@ -8,9 +8,9 @@ Dependencies:
 
 Building:
 	
-	Run build.sh
+	./build.sh
 
 Debugging:
 	
-			cpass init
-	read from dummy tmp.passwords file
+read from dummy tmp.passwords file
+	cpass init
