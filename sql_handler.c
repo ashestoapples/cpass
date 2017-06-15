@@ -72,10 +72,38 @@ sqlite3* init_database(char *path, char *key)
 
 }
 
-void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *noShow)
+void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *noShow, int order)
 {
-	char* sql = "select * from entries;",
-		 *output;
+	char* sql = NULL,
+		 *output = NULL;
+	if (order != 0)
+	{
+		switch(order)
+		{
+			case 1:
+				sql = "select * from entries order by name;";
+				break;
+			case 2:
+				sql = "select * from entries order by url;";
+				break;
+			case 3:
+				sql = "select * from entries order by login;";
+				break;
+			case -1:
+				sql = "select * from entries order by name DESC;";
+				break;
+			case -2:
+				sql = "select * from entries order by url DESC;";
+				break;
+			case -3:
+				sql = "select * from entries order by login DESC;";
+				break;
+		}
+	}
+	else
+	{
+		sql = "select * from entries;";
+	}
 	sqlite3_stmt *stmt;
 	int rc;
 
@@ -86,6 +114,8 @@ void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *no
 	if (rc != SQLITE_OK)
 	{
 		fprintf(stderr, "Unable to read databse\n");
+		fprintf(stderr, "SQL: %s\n", sql);
+		exit(1);
 	}
 	int j = 0;
 	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
@@ -245,3 +275,8 @@ void toClipBoard(sqlite3 *db, int id, int attrib)
 
 
 }
+
+// void search(sqlite3 *db, int size, char arr[size][512])
+// {
+
+// }

@@ -13,7 +13,7 @@
 const int MAX_LINE_LEN = 512;
 const char *BTM_ROW = "┌ h - hide this ─────────────────────────────────────────────────────┐\n"\
 					  "│ q - quit ; n - new entry ; d - delete entry ; e - edit entry       │\n"\
-					  "│ p - copy password ; u - copy username ; l - copy URL ; o - options │\n"\
+					  "│ p - copy password ; u - copy username ; l - copy URL ; 1,2,3 - sort│\n"\
 					  "└────────────────────────────────────────────────────────────────────┘";
 
 /* display function prototypes */
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	char TOP_ROW[128],
 		 fname[64],
 		 passwd[128];
-	sprintf(TOP_ROW, "%-16s\t%-16s\t%-16s\t%-8s", "Title", "URL", "Username", "Passkey");
+	sprintf(TOP_ROW, "%-16s\t%-16s\t%-16s\t%-8s", "(1)Title", "(2)URL", "(3)Username", "(*)Passkey");
 
 	int select = 0, //current cursor selection
 	 	hidden = 1, //do we hide the help? 0=no
@@ -40,7 +40,8 @@ int main(int argc, char *argv[])
 	 	ch,			//input character
 		size,		//size of the database
 		x, y,		//dimensions of the terminal
-		tries = 0;
+		tries = 0,
+		order = 0;
 
 	/* initialize ncurses */
 	initscr();
@@ -60,10 +61,11 @@ int main(int argc, char *argv[])
 			// add(db, "Email", "gmail.com", "foo@bar.com", "password123");
 			// add(db, "Amazon", "amazon.com", "foo@bar.com", "password321");
 			sqlite3_close(db);
+			db2 = init_database("tmp.db", "password");
+
 		}
 	}
-	else
-		/* Validate encryption key */
+	else /* Validate encryption key */
 	{
 		echo();
 		printw("File Name: ");
@@ -99,7 +101,7 @@ int main(int argc, char *argv[])
 	size = tableSize(db2);
 	int ids[size];
 	char arr[size][MAX_LINE_LEN];
-	toString(db2, size, arr, ids, &show);
+	toString(db2, size, arr, ids, &show, order);
 	while (ch != 113) //q
 	{
 		//size = tableSize(db2);
@@ -158,13 +160,13 @@ int main(int argc, char *argv[])
 			case 110: //'n' key
 				createNewScreen(db2, NULL);
 				size = tableSize(db2);
-				toString(db2, size, arr, ids, &show);
+				toString(db2, size, arr, ids, &show, order);
 				break;
 			case 100: //'d' key
 				if (confirmationSreen("Are you sure youu want to delete selected entry? (y/n): ") == 0)
 					removeFromTable(db2, ids[select]);
 				size = tableSize(db2);
-				toString(db2, size, arr, ids, &show);
+				toString(db2, size, arr, ids, &show, order);
 				break;
 			case 104 : //h
 				hidden = !hidden;
@@ -172,11 +174,11 @@ int main(int argc, char *argv[])
 			case 101: //e
 				createNewScreen(db2, & ids[select]);
 				size = tableSize(db2);
-				toString(db2, size, arr, ids, &show);
+				toString(db2, size, arr, ids, &show, order);
 				break;
 			case 10: //enter
 				show = (show != select) ? select : -1;
-				toString(db2, size, arr, ids, &show);
+				toString(db2, size, arr, ids, &show, order);
 				break;
 			case 112: //p
 				toClipBoard(db2, ids[select], 0);
@@ -186,6 +188,27 @@ int main(int argc, char *argv[])
 				break;
 			case 108: //l
 				toClipBoard(db2, ids[select], 2);
+				break;
+			case 49: //1
+				if (order != 1)
+					order = 1;
+				else
+					order = !order;
+				toString(db2, size, arr, ids, &show, order);
+				break;
+			case 50: //2
+				if (order != 2)
+					order = 2;
+				else
+					order = !order;
+				toString(db2, size, arr, ids, &show, order);
+				break;
+			case 51: //3
+				if (order != 3)
+					order = 3;
+				else
+					order = !order;
+				toString(db2, size, arr, ids, &show, order);
 				break;
 		}
 		clear();
@@ -274,6 +297,9 @@ void createNewScreen(sqlite3 *db, int *id)
 					printw("\t\t%s **** \n", displays[i]);
 			}
 		}
+		printw("\n\n┌───────────────────────────────────┐\n"\
+				   "│ Enter - edit field/finish editing │\n"\
+				   "└───────────────────────────────────┘\n");
 		ch = getch();
 		switch(ch)
 		{
@@ -355,6 +381,19 @@ int confirmationSreen(char *warning)
 		}
 	}
 }
+
+// void searchScreen(sqlite3 *db, int size)
+// {
+// 	int y, x, ch = 100;
+// 	char arr[size][MAX_LINE_LEN];
+// 	getmaxyx(stdscr, y, x);
+// 	clear();
+// 	refresh();
+// 	while (1 > 2)
+// 	{
+
+// 	}
+// }
 
 char *generatePasskey(int len)
 {
