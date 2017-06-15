@@ -1,7 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "sqlite3.h"
+
+#include <ncurses.h>
 
 #define DEBUG 1
 
@@ -72,37 +75,37 @@ sqlite3* init_database(char *path, char *key)
 
 }
 
-void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *noShow, int order)
+void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *noShow, int order, char *tName)
 {
-	char* sql = NULL,
+	char* sql[64],
 		 *output = NULL;
 	if (order != 0)
 	{
 		switch(order)
 		{
 			case 1:
-				sql = "select * from entries order by name;";
+				sprintf(sql, "select * from %s order by name;", tName);
 				break;
 			case 2:
-				sql = "select * from entries order by url;";
+				sprintf(sql, "select * from %s order by url;", tName);
 				break;
 			case 3:
-				sql = "select * from entries order by login;";
+				sprintf(sql, "select * from %s order by login;", tName);
 				break;
 			case -1:
-				sql = "select * from entries order by name DESC;";
+				sprintf(sql, "select * from %s order by name DESC;", tName);
 				break;
 			case -2:
-				sql = "select * from entries order by url DESC;";
+				sprintf(sql, "select * from %s order by url DESC;", tName);
 				break;
 			case -3:
-				sql = "select * from entries order by login DESC;";
+				sprintf(sql, "select * from %s order by login DESC;", tName);
 				break;
 		}
 	}
 	else
 	{
-		sql = "select * from entries;";
+		sprintf(sql, "select * from %s;", tName);
 	}
 	sqlite3_stmt *stmt;
 	int rc;
@@ -154,14 +157,15 @@ void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *no
 	free(output);
 }
 
-void add(sqlite3 * db, char *name, char *url, char *login, char *password)
+void add(sqlite3 * db, char *name, char *url, char *login, char *password, char *tName)
 {
 	char *errMsg = 0;
 	char *sql = (char*)malloc(sizeof(char) * (strlen(name) + strlen(login) + strlen(password) + strlen(url)) + 128);
-	sprintf(sql, "insert into entries (id, name, url, login, password) values (NULL, \"%s\", \"%s\",  \"%s\", \"%s\");", name, url, login, password);
+	sprintf(sql, "insert into %s (id, name, url, login, password) values (NULL, \"%s\", \"%s\",  \"%s\", \"%s\");", tName, name, url, login, password);
 	if (sqlite3_exec(db, sql, NULL, NULL, &errMsg) == SQLITE_OK)
 	{
-		printf("Appended to databse successfully\n");
+		//printf("Appended to databse successfully\n");
+
 	}
 	else
 	{
@@ -216,7 +220,7 @@ void removeFromTable(sqlite3 *db, int id)
 	}
 }
 
-int tableSize(sqlite3 * db)
+int entryCount(sqlite3 * db)
 {
 	int rc;
 	sqlite3_stmt *stmt;
@@ -231,6 +235,31 @@ int tableSize(sqlite3 * db)
 	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
 	{
 		return sqlite3_column_int(stmt, 0);
+	}
+}
+
+int tableCount(sqlite3 *db)
+{
+	int rc;
+	sqlite3_stmt *stmt;
+	const char *sql = "select count(*) from sqlite_master where type='table' and name like '%back_%';";
+	rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (rc)
+	{
+		fprintf(stderr, "Could not count tables\n");
+		exit(1);
+	}
+	if ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
+	{
+		int r = sqlite3_column_int(stmt, 0) - 1;
+		printf("%d\n", r);
+		getch();
+		return r;
+	}
+	else
+	{
+		fprintf(stderr, "unable to count table\n");
+		exit(1);
 	}
 }
 
@@ -276,6 +305,75 @@ void toClipBoard(sqlite3 *db, int id, int attrib)
 
 }
 
+void backUpEntries(sqlite3 *db)
+{
+	time_t t = time(NULL);
+	struct tm tm = *localtime(&t);
+	char sql[256],
+		tName[32],
+		*errMsg = 0;
+	int rc;
+	sqlite3_stmt *stmt;
+
+	sprintf(tName, "\'back_%d-%d-%d_%d:%d:%d\'", tm.tm_year + 1900, 
+							tm.tm_mon + 1, 
+							tm.tm_mday, 
+							tm.tm_hour, 
+							tm.tm_min, 
+							tm.tm_sec);
+	sprintf(sql, "create table %s ("\
+							"id integer primary key autoincrement,"\
+							"name text,"\
+							"url text,"\
+							"login text,"\
+							"password text);", tName);
+	rc = sqlite3_exec(db, sql,NULL, NULL, &errMsg);
+	if (rc)
+	{
+		fprintf(stderr, "Unable to create backup databse\nError Msg: %s\nSQL: %s\n", errMsg, sql);
+		exit(1);
+	}
+	memset(sql, '\0', sizeof(sql));
+	strcpy(sql, "select * from entries;");
+	rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (rc)
+	{
+		fprintf(stderr, "Could not prepare statement (backUpEntries)\nSQL: %s\n", sql);
+		exit(1);
+	}
+	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
+	{
+		add(db, sqlite3_column_text(stmt, 1), 
+				sqlite3_column_text(stmt, 2),
+				sqlite3_column_text(stmt, 3),
+				sqlite3_column_text(stmt, 4),
+				tName);
+	}
+
+}
+
+void tables(sqlite3 *db, int count, char arr[count][32])
+{
+	int rc, i = 0;
+	sqlite3_stmt *stmt;
+	char tName[32];
+	rc = sqlite3_prepare_v2(db, "select * from sqlite_master where type='table';", -1, &stmt, NULL);
+	if (rc)
+	{
+		fprintf(stderr, "Unable to prep statement (tables)\nSQL: .tables\n");
+		exit(1);
+	}
+	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
+	{
+		memset(tName, '\0', 32);
+		strcpy(tName, sqlite3_column_text(stmt, 0));
+		if (strcmp(tName, "entries") != 0)
+		{
+			strcpy(arr[i], tName);
+			i++;
+		}
+	}
+}
 // void search(sqlite3 *db, int size, char arr[size][512])
 // {
 

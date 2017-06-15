@@ -8,7 +8,6 @@
 #include "sql_handler.h"
 
 #define LINUX
-
 /* display constants */
 const int MAX_LINE_LEN = 512;
 const char *BTM_ROW = "┌ h - hide this ─────────────────────────────────────────────────────┐\n"\
@@ -43,6 +42,8 @@ int main(int argc, char *argv[])
 		tries = 0,
 		order = 0;
 
+	bool changed;
+
 	/* initialize ncurses */
 	initscr();
 	raw();
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
 			// add(db, "Amazon", "amazon.com", "foo@bar.com", "password321");
 			sqlite3_close(db);
 			db2 = init_database("tmp.db", "password");
-
+			strcpy(fname, "tmp.db");
 		}
 	}
 	else /* Validate encryption key */
@@ -97,14 +98,17 @@ int main(int argc, char *argv[])
 
 	int menuSpace, offset = 0;
 
+	backUpEntries(db2);
+
 	/* main menu loop */
-	size = tableSize(db2);
+	size = entryCount(db2);
 	int ids[size];
 	char arr[size][MAX_LINE_LEN];
-	toString(db2, size, arr, ids, &show, order);
+	toString(db2, size, arr, ids, &show, order, "entries");
 	while (ch != 113) //q
 	{
-		//size = tableSize(db2);
+		changed = false;
+		//size = entryCount(db2);
 		getmaxyx(stdscr, y, x);
 		attron(A_UNDERLINE);
 		printw("%s\n", TOP_ROW);
@@ -159,26 +163,26 @@ int main(int argc, char *argv[])
 				break;
 			case 110: //'n' key
 				createNewScreen(db2, NULL);
-				size = tableSize(db2);
-				toString(db2, size, arr, ids, &show, order);
+				size = entryCount(db2);
+				changed = true;
 				break;
 			case 100: //'d' key
 				if (confirmationSreen("Are you sure youu want to delete selected entry? (y/n): ") == 0)
 					removeFromTable(db2, ids[select]);
-				size = tableSize(db2);
-				toString(db2, size, arr, ids, &show, order);
+				size = entryCount(db2);
+				changed = true;
 				break;
 			case 104 : //h
 				hidden = !hidden;
 				break;
 			case 101: //e
 				createNewScreen(db2, & ids[select]);
-				size = tableSize(db2);
-				toString(db2, size, arr, ids, &show, order);
+				size = entryCount(db2);
+				changed = true;
 				break;
 			case 10: //enter
 				show = (show != select) ? select : -1;
-				toString(db2, size, arr, ids, &show, order);
+				changed = true;
 				break;
 			case 112: //p
 				toClipBoard(db2, ids[select], 0);
@@ -194,25 +198,33 @@ int main(int argc, char *argv[])
 					order = 1;
 				else
 					order = !order;
-				toString(db2, size, arr, ids, &show, order);
+				changed = true;
 				break;
 			case 50: //2
 				if (order != 2)
 					order = 2;
 				else
 					order = !order;
-				toString(db2, size, arr, ids, &show, order);
+				changed = true;
 				break;
 			case 51: //3
 				if (order != 3)
 					order = 3;
 				else
 					order = !order;
-				toString(db2, size, arr, ids, &show, order);
+				changed = true;
+				break;
+			case 97: //a
+				auditSreen(db2, x, y);
+				changed = true;
 				break;
 		}
 		clear();
 		refresh();
+		if (changed)
+		{
+			toString(db2, size, arr, ids, &show, order, "entries");
+		}
 	}
 	endwin();
 
@@ -348,7 +360,7 @@ void createNewScreen(sqlite3 *db, int *id)
 					case 6:
 						if (id != NULL)
 							removeFromTable(db, *id);
-						add(db, newName, newUrl, newLogin, newPassword);
+						add(db, newName, newUrl, newLogin, newPassword, "entries");
 						return;
 					case 7:
 						return;
@@ -379,6 +391,35 @@ int confirmationSreen(char *warning)
 			case 110:
 				return 1;
 		}
+	}
+}
+
+void auditSreen(sqlite3 *db, int x, int y)
+{
+	int ch = 100, 
+		cTables = tableCount(db) + 1,
+		select = 0;
+	printf("table count: %d\n",  cTables);
+	char tDisplay[cTables][32];
+	printf("Before Loop\n");
+	while (1 < 2)
+	{
+		refresh();
+		clear();
+		tables(db, cTables, tDisplay);
+		for (int i = 0; i < cTables; i++)
+		{
+			if (i == select)
+			{
+				attron(A_STANDOUT);
+				printw("%s\n", tDisplay[i]);
+				attron(A_UNDERLINE);
+			}
+			else
+				printw("%s\n", tDisplay[i]);
+		}
+		ch = getch();
+		return;
 	}
 }
 
@@ -437,7 +478,7 @@ void importPasswords(sqlite3 *db, FILE *fp)
 			}
 		}
 		//printf("%s:%s:%s:%s\n", attribs[0], attribs[1], attribs[2], attribs[3]);
-		add(db, attribs[0], attribs[1], attribs[2], attribs[3]);
+		add(db, attribs[0], attribs[1], attribs[2], attribs[3], "entries");
 	}
 	for (int i = 0; i < 4; i++)
 		free(attribs[i]);
