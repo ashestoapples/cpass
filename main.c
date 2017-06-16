@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	backUpEntries(db2);
 
 	/* main menu loop */
-	size = entryCount(db2);
+	size = entryCount(db2, "entries");
 	int ids[size];
 	char arr[size][MAX_LINE_LEN];
 	toString(db2, size, arr, ids, &show, order, "entries");
@@ -163,13 +163,13 @@ int main(int argc, char *argv[])
 				break;
 			case 110: //'n' key
 				createNewScreen(db2, NULL);
-				size = entryCount(db2);
+				size = entryCount(db2, "entries");
 				changed = true;
 				break;
 			case 100: //'d' key
 				if (confirmationSreen("Are you sure youu want to delete selected entry? (y/n): ") == 0)
 					removeFromTable(db2, ids[select]);
-				size = entryCount(db2);
+				size = entryCount(db2, "entries");
 				changed = true;
 				break;
 			case 104 : //h
@@ -177,7 +177,7 @@ int main(int argc, char *argv[])
 				break;
 			case 101: //e
 				createNewScreen(db2, & ids[select]);
-				size = entryCount(db2);
+				size = entryCount(db2, "entries");
 				changed = true;
 				break;
 			case 10: //enter
@@ -398,7 +398,10 @@ void auditSreen(sqlite3 *db, int x, int y)
 {
 	int ch = 100, 
 		cTables = tableCount(db) + 1,
-		select = 0;
+		select = 0,
+		subSelect = 0,
+		show = -1,
+		entrySize = 0;
 	printf("table count: %d\n",  cTables);
 	char tDisplay[cTables][32];
 	printf("Before Loop\n");
@@ -406,6 +409,9 @@ void auditSreen(sqlite3 *db, int x, int y)
 	{
 		refresh();
 		clear();
+		attron(A_UNDERLINE);
+		printw("Password Database History | q - back to main menu | Enter - view \n");
+		attroff(A_UNDERLINE);
 		tables(db, cTables, tDisplay);
 		for (int i = 0; i < cTables; i++)
 		{
@@ -413,13 +419,69 @@ void auditSreen(sqlite3 *db, int x, int y)
 			{
 				attron(A_STANDOUT);
 				printw("%s\n", tDisplay[i]);
-				attron(A_UNDERLINE);
+				attroff(A_STANDOUT);
 			}
 			else
 				printw("%s\n", tDisplay[i]);
 		}
 		ch = getch();
-		return;
+		switch (ch)
+		{
+			case KEY_UP:
+				if (select > 0)
+					select--;
+				break;
+			case KEY_DOWN:
+				if (select < cTables - 1)
+					select++;
+				break;
+			case 10: //enter
+				while (ch != 113)
+				{
+					refresh();
+					clear();
+					attron(A_UNDERLINE);
+					printw("Viewing table for: %s \n", tDisplay[select]);
+					attroff(A_UNDERLINE);
+					entrySize = entryCount(db, tDisplay[select]);
+					printf("Post entry count\n");
+					char subDisplay[entrySize][MAX_LINE_LEN];
+					int ids[entrySize];
+					toString(db, entrySize, subDisplay, ids, &show, 0, tDisplay[select]);
+					printf("Post toString\n");
+					for (int j = 0; j < entrySize; j++)
+					{
+						if (subSelect == j)
+						{
+							attron(A_STANDOUT);
+							printw("%s", subDisplay[j]);
+							attroff(A_STANDOUT);
+						}
+						else
+							printw("%s", subDisplay[j]);
+					}
+					ch = getch();	
+					switch (ch)
+					{
+						case KEY_UP:
+							if (subSelect > 0)
+								subSelect--;
+							break;
+						case KEY_DOWN:
+							if (subSelect < entrySize - 1)
+								subSelect++;
+							break;
+						case 10:
+							show = (show != subSelect) ? subSelect : -1;
+							break;
+					}
+				}
+				ch = 0;
+				break;
+			case 113:
+				return;
+		}
+		
 	}
 }
 

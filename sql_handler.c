@@ -77,43 +77,42 @@ sqlite3* init_database(char *path, char *key)
 
 void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *noShow, int order, char *tName)
 {
-	char* sql[64],
-		 *output = NULL;
+	char sql[128],
+		 output[512];
 	if (order != 0)
 	{
 		switch(order)
 		{
 			case 1:
-				sprintf(sql, "select * from %s order by name;", tName);
+				sprintf(sql, "select * from '%s' order by name;", tName);
 				break;
 			case 2:
-				sprintf(sql, "select * from %s order by url;", tName);
+				sprintf(sql, "select * from '%s' order by url;", tName);
 				break;
 			case 3:
-				sprintf(sql, "select * from %s order by login;", tName);
+				sprintf(sql, "select * from '%s' order by login;", tName);
 				break;
 			case -1:
-				sprintf(sql, "select * from %s order by name DESC;", tName);
+				sprintf(sql, "select * from '%s' order by name DESC;", tName);
 				break;
 			case -2:
-				sprintf(sql, "select * from %s order by url DESC;", tName);
+				sprintf(sql, "select * from '%s' order by url DESC;", tName);
 				break;
 			case -3:
-				sprintf(sql, "select * from %s order by login DESC;", tName);
+				sprintf(sql, "select * from '%s' order by login DESC;", tName);
 				break;
 		}
 	}
 	else
 	{
-		sprintf(sql, "select * from %s;", tName);
+		sprintf(sql, "select * from '%s';", tName);
 	}
 	sqlite3_stmt *stmt;
 	int rc;
 
 	//sqlite3_reset(stmt);
-
+	//printf("SQL: %s\n", sql);
 	rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-
 	if (rc != SQLITE_OK)
 	{
 		fprintf(stderr, "Unable to read databse\n");
@@ -123,7 +122,6 @@ void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *no
 	int j = 0;
 	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
 	{
-		output = (char*)malloc(sizeof(char)*512);
 		if (*noShow == j)
 		{
 			sprintf(output, "%-16s\t%-16s\t%-16s\t%-16s\n", 
@@ -140,6 +138,7 @@ void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *no
 							sqlite3_column_text(stmt, 3),
 							"******");
 		}
+		//printf("output: %s\n", output);
 		strcpy(arr[j], output);
 		ids[j] = sqlite3_column_int(stmt, 0);
 		// printf("%d\t%s\t", j, sqlite3_column_text(stmt, 1));
@@ -152,9 +151,10 @@ void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *no
 		//	printf("%s\t", j, (char*)sqlite3_column_text(stmt, i));
 		//}
 		j++;
+		memset(output, '\0', 512);
 	}
 
-	free(output);
+	//free(output);
 }
 
 void add(sqlite3 * db, char *name, char *url, char *login, char *password, char *tName)
@@ -220,11 +220,12 @@ void removeFromTable(sqlite3 *db, int id)
 	}
 }
 
-int entryCount(sqlite3 * db)
+int entryCount(sqlite3 * db, char *tName)
 {
 	int rc;
 	sqlite3_stmt *stmt;
-	const char *sql = "select count(*) from entries;";
+	char sql[64];
+	sprintf(sql, "select count(*) from '%s';", tName);
 	rc = sqlite3_prepare_v2(db,  sql, -1, &stmt, NULL);
 	if (rc)
 	{
@@ -234,7 +235,9 @@ int entryCount(sqlite3 * db)
 
 	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
 	{
-		return sqlite3_column_int(stmt, 0);
+		int r = sqlite3_column_int(stmt, 0);
+		printf("%d\n", r);
+		return r;
 	}
 }
 
@@ -252,8 +255,6 @@ int tableCount(sqlite3 *db)
 	if ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
 	{
 		int r = sqlite3_column_int(stmt, 0) - 1;
-		printf("%d\n", r);
-		getch();
 		return r;
 	}
 	else
@@ -357,7 +358,7 @@ void tables(sqlite3 *db, int count, char arr[count][32])
 	int rc, i = 0;
 	sqlite3_stmt *stmt;
 	char tName[32];
-	rc = sqlite3_prepare_v2(db, "select * from sqlite_master where type='table';", -1, &stmt, NULL);
+	rc = sqlite3_prepare_v2(db, "select * from sqlite_master where type='table' and name like '%back_%';", -1, &stmt, NULL);
 	if (rc)
 	{
 		fprintf(stderr, "Unable to prep statement (tables)\nSQL: .tables\n");
@@ -366,7 +367,7 @@ void tables(sqlite3 *db, int count, char arr[count][32])
 	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
 	{
 		memset(tName, '\0', 32);
-		strcpy(tName, sqlite3_column_text(stmt, 0));
+		strcpy(tName, sqlite3_column_text(stmt, 1));
 		if (strcmp(tName, "entries") != 0)
 		{
 			strcpy(arr[i], tName);
