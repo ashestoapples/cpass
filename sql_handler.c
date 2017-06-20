@@ -153,7 +153,7 @@ void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *no
 		j++;
 		memset(output, '\0', 512);
 	}
-
+	sqlite3_finalize(stmt);
 	//free(output);
 }
 
@@ -203,6 +203,7 @@ void retreiveFromTable(sqlite3 *db, int id, char newName[64], char newUrl[64], c
 		fprintf(stderr, "Could not read results from database\n");
 	}
 	free(sql);
+	sqlite3_finalize(stmt);
 }
 
 void removeFromTable(sqlite3 *db, int id)
@@ -236,7 +237,8 @@ int entryCount(sqlite3 * db, char *tName)
 	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
 	{
 		int r = sqlite3_column_int(stmt, 0);
-		printf("%d\n", r);
+		//printf("%d\n", r);
+		sqlite3_finalize(stmt);
 		return r;
 	}
 }
@@ -255,6 +257,7 @@ int tableCount(sqlite3 *db)
 	if ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
 	{
 		int r = sqlite3_column_int(stmt, 0) - 1;
+		sqlite3_finalize(stmt);
 		return r;
 	}
 	else
@@ -302,11 +305,11 @@ void toClipBoard(sqlite3 *db, int id, int attrib)
 
 	sprintf(command, "echo %s | xclip -selection clipboard", data);
 	system(command);
-
+	sqlite3_finalize(stmt);
 
 }
 
-void backUpEntries(sqlite3 *db)
+void copyTable(sqlite3 *db, char *from, char *to)
 {
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
@@ -315,14 +318,18 @@ void backUpEntries(sqlite3 *db)
 		*errMsg = 0;
 	int rc;
 	sqlite3_stmt *stmt;
-
-	sprintf(tName, "\'back_%d-%d-%d_%d:%d:%d\'", tm.tm_year + 1900, 
-							tm.tm_mon + 1, 
-							tm.tm_mday, 
-							tm.tm_hour, 
-							tm.tm_min, 
-							tm.tm_sec);
-	sprintf(sql, "create table %s ("\
+	if (to == NULL)
+	{
+		sprintf(tName, "back_%d-%d-%d_%d:%d:%d", tm.tm_year + 1900, 
+								tm.tm_mon + 1, 
+								tm.tm_mday, 
+								tm.tm_hour, 
+								tm.tm_min, 
+								tm.tm_sec);
+	}
+	else
+		strcpy(tName, to);
+	sprintf(sql, "create table '%s' ("\
 							"id integer primary key autoincrement,"\
 							"name text,"\
 							"url text,"\
@@ -335,7 +342,7 @@ void backUpEntries(sqlite3 *db)
 		exit(1);
 	}
 	memset(sql, '\0', sizeof(sql));
-	strcpy(sql, "select * from entries;");
+	sprintf(sql, "select * from '%s';", from);
 	rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 	if (rc)
 	{
@@ -350,7 +357,35 @@ void backUpEntries(sqlite3 *db)
 				sqlite3_column_text(stmt, 4),
 				tName);
 	}
+	sqlite3_finalize(stmt);
 
+}
+
+void renameTable(sqlite3 *db, char *old, char *new)
+{
+	int rc;
+	char sql[64],
+		*errMsg = 0;
+	sprintf(sql, "alter table %s rename to %s;", old, new);
+
+	rc = sqlite3_exec(db, sql, NULL, NULL, &errMsg);
+	if (rc)
+	{
+		fprintf(stderr, "Could not rename table\nErrmsg: %s\n SQL: %s\n", errMsg, sql);
+	}
+}
+
+void removeTable(sqlite3 *db, char *tName)
+{
+	int rc;
+	char *errMsg = 0,
+		sql[64];
+	sprintf(sql, "drop table %s;", tName);
+	rc = sqlite3_exec(db, sql, NULL, NULL, &errMsg);
+	if (rc)
+	{
+		fprintf(stderr, "Unable to remove table: %s\nError msg: %s\nSQL: %s\n", tName, errMsg, sql);
+	}
 }
 
 void tables(sqlite3 *db, int count, char arr[count][32])
@@ -374,6 +409,8 @@ void tables(sqlite3 *db, int count, char arr[count][32])
 			i++;
 		}
 	}
+
+	sqlite3_finalize(stmt);
 }
 // void search(sqlite3 *db, int size, char arr[size][512])
 // {

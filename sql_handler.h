@@ -10,8 +10,9 @@ int entryCount(sqlite3 * db, char *tName);
 void removeFromTable(sqlite3 *db, int id);
 void retreiveFromTable(sqlite3 *db, int id, char newName[64], char newUrl[64], char newLogin[64], char newPassword[128]);
 void toClipBoard(sqlite3 *db, int id, int attrib);
-void backUpEntries(sqlite3 *db);
+void copyTable(sqlite3 *db, char *from, char *to);
 int tableCount(sqlite3 *db);
+void renameTable(sqlite3 *db, char *old, char *new);
 //end prototypes
 
 #endif

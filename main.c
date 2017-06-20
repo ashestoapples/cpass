@@ -52,19 +52,16 @@ int main(int argc, char *argv[])
 	sqlite3 *db2;
 
 	 //for debug purposes
-	if (argc > 1)
+	if (strcmp(argv[1], "init") == 0)
 	{
-		if (strcmp(argv[1], "init") == 0)
-		{
-			sqlite3 *db = init_database("tmp.db", "password");
-			FILE *fp = fopen("tmp.passwords", "r");
-			importPasswords(db, fp);
-			// add(db, "Email", "gmail.com", "foo@bar.com", "password123");
-			// add(db, "Amazon", "amazon.com", "foo@bar.com", "password321");
-			sqlite3_close(db);
-			db2 = init_database("tmp.db", "password");
-			strcpy(fname, "tmp.db");
-		}
+		sqlite3 *db = init_database("tmp.db", "password");
+		FILE *fp = fopen("tmp.passwords", "r");
+		importPasswords(db, fp);
+		// add(db, "Email", "gmail.com", "foo@bar.com", "password123");
+		// add(db, "Amazon", "amazon.com", "foo@bar.com", "password321");
+		sqlite3_close(db);
+		db2 = init_database("tmp.db", "password");
+		strcpy(fname, "tmp.db");
 	}
 	else /* Validate encryption key */
 	{
@@ -76,7 +73,7 @@ int main(int argc, char *argv[])
 		{
 			printw("Passkey for %s:", fname);
 			getstr(passwd);
-			db2 = init_database("tmp.db", "password");
+			db2 = init_database("tmp.db", passwd);
 			if (db2 != NULL)
 			{
 				break;
@@ -98,7 +95,7 @@ int main(int argc, char *argv[])
 
 	int menuSpace, offset = 0;
 
-	backUpEntries(db2);
+	copyTable(db2, "entries", NULL);
 
 	/* main menu loop */
 	size = entryCount(db2, "entries");
@@ -216,6 +213,7 @@ int main(int argc, char *argv[])
 				break;
 			case 97: //a
 				auditSreen(db2, x, y);
+				size = entryCount(db2, "entries");
 				changed = true;
 				break;
 		}
@@ -230,6 +228,33 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
+// void startMenu(sqlite3 *db, int argc, char *argv[])
+// {
+// 	char *key1 = NULL, 
+// 		 *key2 = NULL, 
+// 		 *fname = NULL;
+// 		int attempts;
+// 	for (int i = 0; i < argc; i++)
+// 	{
+// 		if (strcmp(argv[i], "-f") == 0)
+// 		{
+// 			i++;
+// 			fname = argv[i];
+// 		}
+// 		else if (strcmp(argv[i], "-k") == 0)
+// 		{
+// 			i++;
+// 			*key1 = argv[i];
+// 		}
+// 		else if (strcmp(argv[i], "-h") == 0)
+// 		{
+// 			printf("help\n");
+// 		}
+// 	}
+
+
+// }
 
 void createNewScreen(sqlite3 *db, int *id)
 /* multipurpose menu function for creasting new entries and editing existing ones */
@@ -441,7 +466,7 @@ void auditSreen(sqlite3 *db, int x, int y)
 					refresh();
 					clear();
 					attron(A_UNDERLINE);
-					printw("Viewing table for: %s \n", tDisplay[select]);
+					printw("Viewing table for: %s | r - restore this table\n", tDisplay[select]);
 					attroff(A_UNDERLINE);
 					entrySize = entryCount(db, tDisplay[select]);
 					printf("Post entry count\n");
@@ -473,6 +498,15 @@ void auditSreen(sqlite3 *db, int x, int y)
 							break;
 						case 10:
 							show = (show != subSelect) ? subSelect : -1;
+							break;
+						case 114: //r
+							if (confirmationSreen("Are you sure you want to overwrite the current table?\nThe current table will be backed up (y/n): ") == 0)
+							{
+								copyTable(db, "entries", NULL);
+								removeTable(db, "entries");
+								copyTable(db, tDisplay[select], "entries");
+								return;
+							}
 							break;
 					}
 				}
