@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	sqlite3 *db2;
 
 	 //for debug purposes
-	if (strcmp(argv[1], "init") == 0)
+	if (argc > 1 && strcmp(argv[1], "init") == 0)
 	{
 		sqlite3 *db = init_database("tmp.db", "password");
 		FILE *fp = fopen("tmp.passwords", "r");
