@@ -52,17 +52,46 @@ int main(int argc, char *argv[])
 
 	sqlite3 *db2;
 
-	 //for debug purposes
-	if (argc > 1 && strcmp(argv[1], "init") == 0)
+	if (argc > 1)
 	{
-		sqlite3 *db = init_database("tmp.db", "password");
-		FILE *fp = fopen("tmp.passwords", "r");
-		importPasswords(db, fp);
-		// add(db, "Email", "gmail.com", "foo@bar.com", "password123");
-		// add(db, "Amazon", "amazon.com", "foo@bar.com", "password321");
-		sqlite3_close(db);
-		db2 = init_database("tmp.db", "password");
-		strcpy(fname, "tmp.db");
+		if (strcmp(argv[1], "init") == 0)
+		{		
+			sqlite3 *db = init_database("tmp.db", "password");
+			FILE *fp = fopen("tmp.passwords", "r");
+			importPasswords(db, fp);
+			// add(db, "Email", "gmail.com", "foo@bar.com", "password123");
+			// add(db, "Amazon", "amazon.com", "foo@bar.com", "password321");
+			sqlite3_close(db);
+			db2 = init_database("tmp.db", "password");
+			strcpy(fname, "tmp.db");
+		}
+		else if (strcmp(argv[1], "new") == 0)
+		{
+			printf("in this part\n" );
+			char nfname[64], pass1[64], pass2[64];
+			printw("Enter file name for new database: ");
+			getstr(nfname);
+			printw("Enter password for new databse: ");
+			noecho();
+			getstr(pass1);
+			printw("Re-enter password for new database: ");
+			getstr(pass2);
+			while (strcmp(pass1, pass2) != 0)
+			{
+				clear();
+				refresh();
+				printw("passwords did not match, try again\n");
+				printw("Enter password for new databse: ");
+				getstr(pass1);
+				printw("Re-enter password for new database: ");
+				getstr(pass2);
+			}
+
+			sqlite3 *db = init_database(nfname, pass1);
+			sqlite3_close(db);
+			db2 = init_database(nfname, pass1);
+			strcpy(fname, nfname);
+		}
 	}
 	else /* Validate encryption key */
 	{
@@ -74,7 +103,7 @@ int main(int argc, char *argv[])
 		{
 			printw("Passkey for %s:", fname);
 			getstr(passwd);
-			db2 = init_database("tmp.db", passwd);
+			db2 = init_database(fname, passwd);
 			if (db2 != NULL)
 			{
 				break;
@@ -101,7 +130,7 @@ int main(int argc, char *argv[])
 	/* main menu loop */
 	size = entryCount(db2, "entries");
 	int ids[size];
-	char arr[size][MAX_LINE_LEN];
+	char arr[512][MAX_LINE_LEN];
 	toString(db2, size, arr, ids, &show, order, "entries");
 	while (ch != 113) //q
 	{
