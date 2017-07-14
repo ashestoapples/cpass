@@ -20,6 +20,7 @@ void createNewScreen(sqlite3 *db, int *id);
 char *generatePasskey(int len);
 int confirmationSreen(char *warning);
 void importPasswords(sqlite3 *db, FILE *fp);
+void auditSreen(sqlite3 *db, int x, int y);
 
 
 int main(int argc, char *argv[])
@@ -173,7 +174,7 @@ int main(int argc, char *argv[])
 				hidden = !hidden;
 				break;
 			case 101: //e
-				createNewScreen(db2, & ids[select]);
+				createNewScreen(db2, &ids[select]);
 				size = entryCount(db2, "entries");
 				changed = true;
 				break;
@@ -290,10 +291,10 @@ void createNewScreen(sqlite3 *db, int *id)
 	}
 
 	//setting display pointers 
-	arr[0] = &newName;
-	arr[1] = &newUrl;
-	arr[2] = &newLogin;
-	arr[3] = &newPassword;
+	arr[0] = newName;
+	arr[1] = newUrl;
+	arr[2] = newLogin;
+	arr[3] = newPassword;
 
 	/* main input loop */
 	while (ch != 113)
@@ -537,7 +538,7 @@ char *generatePasskey(int len)
 	time_t t;
 	srand(time(NULL));
 	char key[len];
-	char *ptr = &key;
+	char *ptr = key;
 	for (int i = 0; i < len; i++)
 		key[i] = (char)rand() % 75 + 48;
 	return ptr;

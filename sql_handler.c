@@ -79,6 +79,9 @@ void toString(sqlite3 *db, int size, char arr[size][512], int ids[size], int *no
 {
 	char sql[128],
 		 output[512];
+	memset(output, '\0', 512);
+	for (int i = 0; i < size; i++)
+		memset(arr[i], '\0', 512);
 	if (order != 0)
 	{
 		switch(order)

@@ -13,6 +13,7 @@ void toClipBoard(sqlite3 *db, int id, int attrib);
 void copyTable(sqlite3 *db, char *from, char *to);
 int tableCount(sqlite3 *db);
 void renameTable(sqlite3 *db, char *old, char *new);
+void tables(sqlite3 *db, int count, char arr[count][32]);
 //end prototypes
 
 #endif
