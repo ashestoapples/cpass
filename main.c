@@ -568,8 +568,23 @@ char *generatePasskey(int len)
 	srand(time(NULL));
 	char key[len];
 	char *ptr = key;
+	char special_chars[13] = {'$', '%', '#', '@', '*', '>', '<', '_', '-', '[', ']', '!', '?'};
+	int x = 0;
 	for (int i = 0; i < len; i++)
-		key[i] = (char)rand() % 75 + 48;
+	{
+		x = rand() % 4 + 1;
+		switch (x)
+		{
+			case 1:
+				key[i] = special_chars[rand() % 13];
+			case 2:
+				key[i] = (char)rand() % 10 + 48;
+			case 3:
+				key[i] = (char)rand() % 25 + 65;
+			case 4:
+				key[i] = (char)rand() % 25 + 97;
+		}
+	}
 	return ptr;
 }
 
